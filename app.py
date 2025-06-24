@@ -1,31 +1,41 @@
-
 import streamlit as st
-import yt_dlp
+from pytube import YouTube
+from PIL import Image
+import requests
+from io import BytesIO
 import os
 
-st.title("📥 YouTube Video Downloader (yt_dlp)")
-st.write("Paste a YouTube link below and download the video.")
+st.set_page_config(page_title="YouTube Downloader", layout="centered")
+st.title("📥 YouTube Downloader")
+st.write("Paste a YouTube link below and choose format to download.")
 
-# User input
-url = st.text_input("🔗 Enter YouTube URL")
+url = st.text_input("🔗 Enter YouTube Video URL:")
 
-# Download button
-if st.button("Download Video"):
-    if url:
-        try:
-            st.info("⏳ Starting download...")
+if url:
+    try:
+        yt = YouTube(url)
+        st.video(url)
+        st.markdown(f"**🎞 Title:** {yt.title}")
+        st.markdown(f"**📺 Channel:** {yt.author}")
+        st.markdown(f"**⏱ Duration:** {yt.length // 60} min {yt.length % 60} sec")
 
-            ydl_opts = {
-                'outtmpl': '%(title)s.%(ext)s',
-                'quiet': True
-            }
+        # Show thumbnail
+        response = requests.get(yt.thumbnail_url)
+        img = Image.open(BytesIO(response.content))
+        st.image(img, caption="Thumbnail", use_column_width=True)
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+        option = st.radio("Select download format", ["📹 Video", "🎧 Audio Only"])
 
-            st.success("✅ Video downloaded successfully!")
+        if st.button("⬇️ Download"):
+            st.info("⏳ Downloading... please wait.")
+            if option == "📹 Video":
+                stream = yt.streams.get_highest_resolution()
+                stream.download()
+                st.success("✅ Video downloaded successfully (on server).")
+            else:
+                audio_stream = yt.streams.filter(only_audio=True).first()
+                audio_stream.download()
+                st.success("✅ Audio downloaded successfully (on server).")
 
-        except Exception as e:
-            st.error(f"⚠️ Error: {e}")
-    else:
-        st.warning("⚠️ Please paste a valid YouTube link.")
+    except Exception as e:
+        st.error(f"⚠️ Error: {e}")
